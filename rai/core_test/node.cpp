@@ -27,21 +27,6 @@ TEST (node, block_store_path_failure)
 	node->stop ();
 }
 
-TEST (node, inactive_supply)
-{
-	rai::node_init init;
-	auto service (boost::make_shared<boost::asio::io_service> ());
-	rai::alarm alarm (*service);
-	auto path (rai::unique_path ());
-	rai::node_config config;
-	config.logging.init (path);
-	rai::work_pool work (std::numeric_limits<unsigned>::max (), nullptr);
-	config.inactive_supply = 10;
-	auto node (std::make_shared<rai::node> (init, *service, path, alarm, config, work));
-	ASSERT_EQ (10, node->ledger.inactive_supply);
-	node->stop ();
-}
-
 TEST (node, state_canaries)
 {
 	rai::node_init init;
@@ -505,7 +490,8 @@ TEST (node_config, serialization)
 	rai::node_config config1 (100, logging1);
 	config1.bootstrap_fraction_numerator = 10;
 	config1.receive_minimum = 10;
-	config1.inactive_supply = 10;
+	config1.online_weight_minimum = 10;
+	config1.online_weight_quorom = 10;
 	config1.password_fanout = 10;
 	config1.enable_voting = false;
 	config1.callback_address = "test";
@@ -523,7 +509,8 @@ TEST (node_config, serialization)
 	ASSERT_NE (config2.bootstrap_fraction_numerator, config1.bootstrap_fraction_numerator);
 	ASSERT_NE (config2.peering_port, config1.peering_port);
 	ASSERT_NE (config2.logging.node_lifetime_tracing_value, config1.logging.node_lifetime_tracing_value);
-	ASSERT_NE (config2.inactive_supply, config1.inactive_supply);
+	ASSERT_NE (config2.online_weight_minimum, config1.online_weight_minimum);
+	ASSERT_NE (config2.online_weight_quorom, config1.online_weight_quorom);
 	ASSERT_NE (config2.password_fanout, config1.password_fanout);
 	ASSERT_NE (config2.enable_voting, config1.enable_voting);
 	ASSERT_NE (config2.callback_address, config1.callback_address);
@@ -539,7 +526,8 @@ TEST (node_config, serialization)
 	ASSERT_EQ (config2.bootstrap_fraction_numerator, config1.bootstrap_fraction_numerator);
 	ASSERT_EQ (config2.peering_port, config1.peering_port);
 	ASSERT_EQ (config2.logging.node_lifetime_tracing_value, config1.logging.node_lifetime_tracing_value);
-	ASSERT_EQ (config2.inactive_supply, config1.inactive_supply);
+	ASSERT_EQ (config2.online_weight_minimum, config1.online_weight_minimum);
+	ASSERT_EQ (config2.online_weight_quorom, config1.online_weight_quorom);
 	ASSERT_EQ (config2.password_fanout, config1.password_fanout);
 	ASSERT_EQ (config2.enable_voting, config1.enable_voting);
 	ASSERT_EQ (config2.callback_address, config1.callback_address);

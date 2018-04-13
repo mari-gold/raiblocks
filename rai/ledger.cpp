@@ -495,9 +495,8 @@ bool rai::shared_ptr_block_hash::operator() (std::shared_ptr<rai::block> const &
 	return *lhs == *rhs;
 }
 
-rai::ledger::ledger (rai::block_store & store_a, rai::uint128_t const & inactive_supply_a, rai::block_hash const & state_block_parse_canary_a, rai::block_hash const & state_block_generate_canary_a) :
+rai::ledger::ledger (rai::block_store & store_a, rai::block_hash const & state_block_parse_canary_a, rai::block_hash const & state_block_generate_canary_a) :
 store (store_a),
-inactive_supply (inactive_supply_a),
 check_bootstrap_weights (true),
 state_block_parse_canary (state_block_parse_canary_a),
 state_block_generate_canary (state_block_generate_canary_a)
@@ -583,8 +582,7 @@ rai::uint128_t rai::ledger::supply (MDB_txn * transaction_a)
 	auto unallocated (account_balance (transaction_a, rai::genesis_account));
 	auto burned (account_pending (transaction_a, 0));
 	auto absolute_supply (rai::genesis_amount - unallocated - burned);
-	auto adjusted_supply (absolute_supply - inactive_supply);
-	return adjusted_supply <= absolute_supply ? adjusted_supply : 0;
+	return absolute_supply;
 }
 
 rai::block_hash rai::ledger::representative (MDB_txn * transaction_a, rai::block_hash const & hash_a)
