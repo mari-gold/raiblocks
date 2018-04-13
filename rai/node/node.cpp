@@ -2937,12 +2937,6 @@ rai::uint128_t rai::election::quorum_threshold (MDB_txn * transaction_a, rai::le
 	return ledger_a.supply (transaction_a) / 2;
 }
 
-rai::uint128_t rai::election::minimum_threshold (MDB_txn * transaction_a, rai::ledger & ledger_a)
-{
-	// Minimum number of votes needed to change our ledger, under which we're probably disconnected
-	return ledger_a.supply (transaction_a) / 16;
-}
-
 void rai::election::confirm_once (MDB_txn * transaction_a)
 {
 	if (!confirmed.exchange (true))
@@ -2951,7 +2945,13 @@ void rai::election::confirm_once (MDB_txn * transaction_a)
 		assert (tally_l.size () > 0);
 		auto winner (tally_l.begin ());
 		auto block_l (winner->second);
-		auto exceeded_min_threshold = winner->first > minimum_threshold (transaction_a, node.ledger);
+		rai::uint128_t total (0);
+		for (auto & i : tally_l)
+		{
+			total += i.first;
+		}
+		auto quorom_minimum ((total / 100) * node.config.online_weight_quorom);
+		auto exceeded_min_threshold = total > node.config.online_weight_minimum.number () && winner->first > quorom_minimum;
 		if (!(*block_l == *status.winner))
 		{
 			if (exceeded_min_threshold)
@@ -2971,7 +2971,7 @@ void rai::election::confirm_once (MDB_txn * transaction_a)
 		auto winner_l (status.winner);
 		auto node_l (node.shared ());
 		auto confirmation_action_l (confirmation_action);
-		node.background ([winner_l, confirmation_action_l, node_l, exceeded_min_threshold]() {
+		node.background ([node_l, winner_l, confirmation_action_l, exceeded_min_threshold]() {
 			node_l->process_confirmed (winner_l);
 			confirmation_action_l (winner_l, exceeded_min_threshold);
 		});

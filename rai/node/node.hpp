@@ -61,7 +61,6 @@ public:
 	// Confirmation method 2, settling time
 	void confirm_cutoff (MDB_txn *);
 	rai::uint128_t quorum_threshold (MDB_txn *, rai::ledger &);
-	rai::uint128_t minimum_threshold (MDB_txn *, rai::ledger &);
 	rai::votes votes;
 	rai::node & node;
 	std::unordered_map<rai::account, std::pair<std::chrono::steady_clock::time_point, uint64_t>> last_votes;

@@ -638,7 +638,7 @@ TEST (node_config, v2_v3_upgrade)
 	ASSERT_FALSE (tree.get_optional<std::string> ("io_threads"));
 	ASSERT_FALSE (tree.get_optional<std::string> ("work_threads"));
 	config1.deserialize_json (upgraded, tree);
-	ASSERT_EQ (rai::uint128_union (0).to_string_dec (), tree.get<std::string> ("inactive_supply"));
+	//ASSERT_EQ (rai::uint128_union (0).to_string_dec (), tree.get<std::string> ("inactive_supply"));
 	ASSERT_EQ ("1024", tree.get<std::string> ("password_fanout"));
 	ASSERT_NE (0, std::stoul (tree.get<std::string> ("password_fanout")));
 	ASSERT_NE (0, std::stoul (tree.get<std::string> ("password_fanout")));
@@ -1484,4 +1484,35 @@ TEST (node, block_confirm)
 		++iterations;
 		ASSERT_LT (iterations, 200);
 	}
+}
+
+TEST (node, confirm_quorom)
+{
+	rai::system system (24000, 1);
+	rai::genesis genesis;
+	system.nodes [0]->ledger.state_block_parse_canary = genesis.hash ();
+	// Put greater than online_weight_minimum in pending so quorom can't be reached
+	auto send1 (std::make_shared <rai::state_block> (rai::test_genesis_key.pub, genesis.hash (), rai::test_genesis_key.pub, rai::Gxrb_ratio, rai::test_genesis_key.pub, rai::test_genesis_key.prv, rai::test_genesis_key.pub, system.nodes [0]->generate_work (genesis.hash ())));
+	{
+		rai::transaction transaction (system.nodes [0]->store.environment, nullptr, true);
+		ASSERT_EQ (rai::process_result::progress, system.nodes [0]->ledger.process (transaction, *send1).code);
+	}
+	system.wallet (0)->send_action (rai::test_genesis_key.pub, rai::test_genesis_key.pub, rai::Gxrb_ratio);
+	ASSERT_TRUE (system.nodes [0]->active.roots.empty ());
+	auto iterations (0);
+	while (system.nodes [0]->active.roots.empty ())
+	{
+		system.poll ();
+		++iterations;
+		ASSERT_LT (iterations, 200);
+	}
+	ASSERT_FALSE (system.nodes [0]->active.roots.empty ());
+	while (!system.nodes [0]->active.roots.empty ())
+	{
+		system.poll ();
+		++iterations;
+		ASSERT_LT (iterations, 200);
+	}
+	ASSERT_TRUE (system.nodes [0]->active.roots.empty ());
+	ASSERT_EQ (0, system.nodes [0]->balance (rai::test_genesis_key.pub));
 }
