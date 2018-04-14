@@ -966,6 +966,7 @@ bool rai::node_config::upgrade_json (unsigned version, boost::property_tree::ptr
 			tree_a.erase ("inactive_supply");
 			tree_a.erase ("version");
 			tree_a.put ("version", "11");
+			result = true;
 		case 11:
 			break;
 		default:
