@@ -1415,7 +1415,7 @@ rai::process_return rai::block_processor::process_receive_one (MDB_txn * transac
 			if (!node.block_arrival.recent (block_a->hash ()))
 			{
 				// Only let the bootstrap attempt know about forked blocks that did not arrive via UDP.
-				node.bootstrap_initiator.process_fork (transaction_a, block_a);
+				node.process_fork (transaction_a, block_a);
 			}
 			if (node.config.logging.ledger_logging ())
 			{
@@ -2408,6 +2408,48 @@ uint64_t rai::node::generate_work (rai::uint256_union const & hash_a)
 
 void rai::node::add_initial_peers ()
 {
+}
+
+void rai::node::process_fork (MDB_txn * transaction_a, std::shared_ptr<rai::block> block_a)
+{
+	auto root (block_a->root ());
+	if (!store.block_exists (transaction_a, block_a->hash ()) && (store.block_exists (transaction_a, root) || store.account_exists (transaction_a, root)))
+	{
+		std::shared_ptr<rai::block> ledger_block (ledger.forked_block (transaction_a, *block_a));
+		if (ledger_block)
+		{
+			BOOST_LOG (log) << boost::str (boost::format ("Resolving fork between our block: %1% and block %2% both with root %3%") % ledger_block->hash ().to_string () % block_a->hash ().to_string () % block_a->root ().to_string ());
+			std::weak_ptr<rai::node> node_w (shared ());
+			active.start (transaction_a, std::make_pair (ledger_block, block_a), [node_w, root](std::shared_ptr<rai::block>, bool resolved) {
+				if (auto node_l = node_w.lock ())
+				{
+					if (resolved)
+					{
+						auto attempt (node_l->bootstrap_initiator.current_attempt ());
+						if (attempt != nullptr)
+						{
+							rai::transaction transaction (node_l->store.environment, nullptr, false);
+							auto account (node_l->ledger.store.frontier_get (transaction, root));
+							if (!account.is_zero ())
+							{
+								attempt->requeue_pull (rai::pull_info (account, root, root));
+							}
+							else if (attempt->node->ledger.store.account_exists (transaction, root))
+							{
+								attempt->requeue_pull (rai::pull_info (root, rai::block_hash (0), rai::block_hash (0)));
+							}
+						}
+						else
+						{
+							node_l->bootstrap_initiator.bootstrap ();
+						}
+					}
+				}
+			});
+			network.broadcast_confirm_req (ledger_block);
+			network.broadcast_confirm_req (block_a);
+		}
+	}
 }
 
 namespace
